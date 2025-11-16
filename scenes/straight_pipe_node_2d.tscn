@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://w8b56h2y8up0"]
+
+[ext_resource type="Texture2D" uid="uid://cbefg85p0vo6y" path="res://assets/bottom_to_top_dir.png" id="1_ggasc"]
+[ext_resource type="Script" uid="uid://bqi1odfypltt5" path="res://scripts/straight_pipe_node_2d.gd" id="1_ikamt"]
+
+[node name="StraightPipeNode2D" type="Node2D"]
+script = ExtResource("1_ikamt")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_ggasc")
