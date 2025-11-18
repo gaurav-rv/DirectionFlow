@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://br483fgb7u322"]
+
+[ext_resource type="Script" uid="uid://dg5yshhdjvsvd" path="res://scripts/board.gd" id="1_bw3vb"]
+
+[sub_resource type="CanvasTexture" id="CanvasTexture_tx6nw"]
+
+[node name="Board" type="Node2D"]
+script = ExtResource("1_bw3vb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(256, 256)
+scale = Vector2(512, 512)
+texture = SubResource("CanvasTexture_tx6nw")

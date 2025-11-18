@@ -1,5 +1,23 @@
-[gd_scene format=3 uid="uid://ds8kr4swipejn"]
+[gd_scene load_steps=3 format=3 uid="uid://ds8kr4swipejn"]
+
+[ext_resource type="Texture2D" uid="uid://dj1e1mkuupmsn" path="res://assets/horizontal_p.png" id="1_hsy3d"]
+
+[sub_resource type="GDScript" id="GDScript_px2wf"]
+script/source = "extends Node2D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+"
 
 [node name="LPipeNode2D" type="Node2D"]
+script = SubResource("GDScript_px2wf")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_hsy3d")
