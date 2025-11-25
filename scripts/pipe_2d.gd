@@ -1,24 +1,12 @@
 extends Node2D
 class_name Pipe2D
 
-# Enums for directions
-enum Direction {
-	NORTH = 0,
-	EAST = 1,
-	SOUTH = 2,
-	WEST = 3
-}
-
-# Enums for pipe states
-enum PipeState {
-	UTILIZED = 0,
-	NOT_UTILIZED = 1
-}
+# Include utility enums
+const PipeUtil = preload("res://scripts/pipe_util.gd")
 
 # Pipe attributes as specified in ReadMe
-@export var start_direction: Direction = Direction.NORTH
-@export var end_direction: Direction = Direction.SOUTH
-@export var state: PipeState = PipeState.NOT_UTILIZED
+@export var state: PipeUtil.PipeState = PipeUtil.PipeState.NOT_UTILIZED
+@export var pipe_type: PipeUtil.PipeType = PipeUtil.PipeType.STRAIGHT
 @export var x_pos: int = 0 # Relative to grid
 @export var y_pos: int = 0 # Relative to grid
 @export var orientation: float = 0.0 # 0, 90, 180, 270 degrees
@@ -28,29 +16,43 @@ enum PipeState {
 @export var rotation_duration: float = 0.3
 @export var state_transition_duration: float = 0.2
 
+
 # Internal components
-var sprite: Sprite2D
+
+# This will contain a list of openings based on pipe type and orientation
+var openingList = []
+
 var tween: Tween
+var current_rotation_angle: float = 0.0
+# Sprite2D reference for the pipe visual
+@onready var sprite = $Sprite2D
 
 # Signals for game logic
 signal pipe_clicked(pipe: Pipe2D)
 signal rotation_completed(pipe: Pipe2D)
-signal state_changed(pipe: Pipe2D, new_state: PipeState)
+signal state_changed(pipe: Pipe2D, new_state: PipeUtil.PipeState)
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	setup_pipe(Direction.NORTH, Direction.SOUTH)
+	setup_pipe(PipeUtil.PipeType.STRAIGHT)
 	setup_input_handling()
 
-func setup_pipe(start_direction: Direction, end_direction: Direction) -> void:
+func setup_pipe(pipe_type: PipeUtil.PipeType) -> void:
 	# Create sprite component if not already present
 	if not sprite:
 		sprite = Sprite2D.new()
 		add_child(sprite)
 	
-	self.start_direction = start_direction
-	self.end_direction = end_direction
-	setImageBasedOnDirection(start_direction, end_direction)
+	self.pipe_type = pipe_type
+	if (pipe_type == PipeUtil.PipeType.STRAIGHT):
+		openingList = [PipeUtil.Direction.NORTH, PipeUtil.Direction.SOUTH]
+	elif (pipe_type == PipeUtil.PipeType.CURVED):
+		openingList = [PipeUtil.Direction.NORTH, PipeUtil.Direction.EAST]
+	elif (pipe_type == PipeUtil.PipeType.T_JUNCTION):
+		openingList = [PipeUtil.Direction.NORTH, PipeUtil.Direction.EAST, PipeUtil.Direction.WEST]
+	elif (pipe_type == PipeUtil.PipeType.CROSS):
+		openingList = [PipeUtil.Direction.NORTH, PipeUtil.Direction.EAST, PipeUtil.Direction.SOUTH, PipeUtil.Direction.WEST]
+	setImageBasedOnDirection()
 
 	# Set initial position based on grid coordinates
 	position = Vector2(x_pos * tile_size.x, y_pos * tile_size.y)
@@ -59,7 +61,7 @@ func setup_pipe(start_direction: Direction, end_direction: Direction) -> void:
 	rotation_degrees = orientation
 	
 	# Update visual representation based on state
-	update_visual_state()
+	# update_visual_state()
 
 func setup_input_handling() -> void:
 	# Enable input processing for clicking
@@ -84,69 +86,56 @@ func on_pipe_clicked() -> void:
 
 # Rotate the pipe by 90 degrees clockwise
 func rotate_pipe() -> void:
-	if tween and tween.is_valid():
-		tween.kill()
+	print("Rotating pipe at position (%d, %d)" % [x_pos, y_pos])
+	if (current_rotation_angle == 270):
+		current_rotation_angle = 0
+	else:
+		current_rotation_angle += 90
 	
-	tween = create_tween()
-	tween.set_ease(Tween.EASE_OUT)
-	tween.set_trans(Tween.TRANS_CUBIC)
+	# Animate rotation
+	if (current_rotation_angle == 0):
+		sprite.flip_h = false
+		sprite.flip_v = false
+		if(pipe_type == PipeUtil.PipeType.CURVED):
+			openingList = [PipeUtil.Direction.SOUTH, PipeUtil.Direction.EAST]
+	elif (current_rotation_angle == 90):
+		sprite.flip_h = true
+		sprite.flip_v = false
+		if(pipe_type == PipeUtil.PipeType.CURVED):
+			openingList = [PipeUtil.Direction.EAST, PipeUtil.Direction.NORTH]
+	elif (current_rotation_angle == 180):
+		sprite.flip_h = false
+		sprite.flip_v = true
+		if(pipe_type == PipeUtil.PipeType.CURVED):
+			openingList = [PipeUtil.Direction.NORTH, PipeUtil.Direction.WEST]
+	elif (current_rotation_angle == 270):
+		sprite.flip_h = true
+		sprite.flip_v = true
+		if(pipe_type == PipeUtil.PipeType.CURVED):
+			openingList = [PipeUtil.Direction.WEST, PipeUtil.Direction.SOUTH]
 	
-	var target_rotation = orientation + 90.0
-	if target_rotation >= 360.0:
-		target_rotation = 0.0
-	
-	tween.tween_method(set_visual_rotation, orientation, target_rotation, rotation_duration)
-	await tween.finished
-	
-	orientation = target_rotation
-	update_directions_after_rotation()
-	rotation_completed.emit(self)
 
 func set_visual_rotation(angle: float) -> void:
 	rotation_degrees = angle
 
-func update_directions_after_rotation() -> void:
-	# Rotate directions clockwise by one step
-	start_direction = ((start_direction + 1) % 4) as Direction
-	end_direction = ((end_direction + 1) % 4) as Direction
-
 # Set the pipe state with animation
-func set_pipe_state(new_state: PipeState) -> void:
+func set_pipe_state(new_state: PipeUtil.PipeState) -> void:
 	if state != new_state:
 		var old_state = state
 		state = new_state
 		animate_state_transition(old_state, new_state)
 		state_changed.emit(self, new_state)
 
-setImageBasedOnDirection(start_direction, end_direction) -> void:
+func setImageBasedOnDirection() -> void:
 	# Placeholder: Set the sprite texture based on start and end directions
 	# In a real implementation, you would load different textures for different pipe types
-	if(start_direction == Direction.NORTH and end_direction == Direction.SOUTH) :
-		var texture_path = "res://assets/top_to_bottom_dir.png"
-	elif(start_direction == Direction.NORTH and end_direction == Direction.EAST) :
-		var texture_path = "res://assets/top_to_right_dir.png"
-	elif(start_direction == Direction.NORTH and end_direction == Direction.WEST) :
-		var texture_path = "res://assets/top_to_left_dir.png"
-	elif(start_direction == Direction.EAST and end_direction == Direction.SOUTH) :
-		var texture_path = "res://assets/right_to_bottom_dir.png"
-	elif(start_direction == Direction.EAST and end_direction == Direction.WEST) :
-		var texture_path = "res://assets/right_to_left_dir.png"
-	elif(start_direction == Direction.EAST and end_direction == Direction.NORTH) :
-		var texture_path = "res://assets/right_to_top_dir.png"
-	elif(start_direction == Direction.SOUTH and end_direction == Direction.WEST) :
-		var texture_path = "res://assets/bottom_to_left_dir.png"
-	elif(start_direction == Direction.SOUTH and end_direction == Direction.EAST) :
-		var texture_path = "res://assets/bottom_to_right_dir.png"
-	elif(start_direction == Direction.SOUTH and end_direction == Direction.NORTH) :
-		var texture_path = "res://assets/bottom_to_top_dir.png"
-	elif(start_direction == Direction.WEST and end_direction == Direction.NORTH) :
-		var texture_path = "res://assets/left_to_top_dir.png"
-	elif(start_direction == Direction.WEST and end_direction == Direction.SOUTH) :
-		var texture_path = "res://assets/left_to_bottom_dir.png"
-	elif(start_direction == Direction.WEST and end_direction == Direction.EAST) :
-		var texture_path = "res://assets/left_to_right_dir.png"
+	var texture_path: String
+	if (pipe_type == PipeUtil.PipeType.STRAIGHT):
+		texture_path = PipeUtil.STRAIGHT_PIPE
+	elif (pipe_type == PipeUtil.PipeType.CURVED):
+		texture_path = PipeUtil.CURVED_PIPE
 	else:
-		var texture_path = "res://assets/top_to_bottom_dir.png" # Fallback
+		texture_path = "res://assets/top_to_bottom_dir.png" # Fallback
 	var texture = load(texture_path)
 	if texture:
 		sprite.texture = texture
@@ -154,7 +143,7 @@ setImageBasedOnDirection(start_direction, end_direction) -> void:
 		# Fallback texture if specific one not found
 		sprite.texture = load("res://assets/pipes/pipe_default.png")
 
-func animate_state_transition(_from_state: PipeState, to_state: PipeState) -> void:
+func animate_state_transition(_from_state: PipeUtil.PipeState, to_state: PipeUtil.PipeState) -> void:
 	if tween and tween.is_valid():
 		tween.kill()
 	
@@ -164,65 +153,40 @@ func animate_state_transition(_from_state: PipeState, to_state: PipeState) -> vo
 	
 	# Animate scale or modulate based on state
 	match to_state:
-		PipeState.UTILIZED:
+		PipeUtil.PipeState.UTILIZED:
 			tween.parallel().tween_property(self, "modulate", Color.GREEN, state_transition_duration)
 			tween.parallel().tween_property(self, "scale", Vector2(1.1, 1.1), state_transition_duration * 0.5)
 			tween.tween_property(self, "scale", Vector2.ONE, state_transition_duration * 0.5)
-		PipeState.NOT_UTILIZED:
+		PipeUtil.PipeState.NOT_UTILIZED:
 			tween.tween_property(self, "modulate", Color.WHITE, state_transition_duration)
 
 func update_visual_state() -> void:
 	# Update visual representation based on current state
 	match state:
-		PipeState.UTILIZED:
+		PipeUtil.PipeState.UTILIZED:
 			modulate = Color.GREEN
-		PipeState.NOT_UTILIZED:
+		PipeUtil.PipeState.NOT_UTILIZED:
 			modulate = Color.WHITE
 
-# Set grid position and update world position
-func set_grid_position(x: int, y: int) -> void:
-	x_pos = x
-	y_pos = y
-	position = Vector2(x_pos * tile_size.x, y_pos * tile_size.y)
-
-# Get the direction this pipe connects to from a given input direction
-func get_output_direction(input_dir: Direction) -> Direction:
-	if input_dir == get_reverse_direction(start_direction):
-		return end_direction
-	elif input_dir == get_reverse_direction(end_direction):
-		return start_direction
-	else:
-		return Direction.NORTH # Invalid connection
-
-func get_reverse_direction(dir: Direction) -> Direction:
+func get_reverse_direction(dir: PipeUtil.Direction) -> PipeUtil.Direction:
 	match dir:
-		Direction.NORTH:
-			return Direction.SOUTH
-		Direction.SOUTH:
-			return Direction.NORTH
-		Direction.EAST:
-			return Direction.WEST
-		Direction.WEST:
-			return Direction.EAST
+		PipeUtil.Direction.NORTH:
+			return PipeUtil.Direction.SOUTH
+		PipeUtil.Direction.SOUTH:
+			return PipeUtil.Direction.NORTH
+		PipeUtil.Direction.EAST:
+			return PipeUtil.Direction.WEST
+		PipeUtil.Direction.WEST:
+			return PipeUtil.Direction.EAST
 		_:
-			return Direction.NORTH
+			return PipeUtil.Direction.NORTH
 
 # Check if this pipe can connect to another pipe
-func can_connect_to(other_pipe: Pipe2D, connection_dir: Direction) -> bool:
+func can_connect_to(other_pipe: Pipe2D, connection_dir: PipeUtil.Direction) -> bool:
 	var my_output = self.end_direction
 	var their_input = other_pipe.get_reverse_direction(connection_dir)
 	
-	return my_output == connection_dir and other_pipe.get_output_direction(their_input) == get_reverse_direction(connection_dir)
-
-# Get string representation for debugging
-func get_debug_string() -> String:
-	return "Pipe[%d,%d] Start:%s End:%s Orient:%.0f State:%s" % [
-		x_pos, y_pos,
-		Direction.keys()[start_direction],
-		Direction.keys()[end_direction],
-		orientation,
-		PipeState.keys()[state]
-	]
+	return true
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(_delta: float) -> void:

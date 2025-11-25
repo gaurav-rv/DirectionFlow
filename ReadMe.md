@@ -17,7 +17,6 @@ What attributes will a pipe have?
 
 All the animation should be handled in the pipe when we transition between states and orientation. 
 
-The grid will be the board where the game starts. 
-First we will start with an 8 by 8 pipe in haphazard manner. 
-
+So next we'll talk about the Board.
+A board will at least for level one an 8 by 8 structure where each tile will have one pipe. The pipes will be in a disordered structure
 ############

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://16rfp1o28bxw"]
+
+[ext_resource type="Script" uid="uid://dclkqie4mgj0t" path="res://scripts/main.gd" id="1_o5qli"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_o5qli")
+
+[node name="PipeContainer" type="Container" parent="."]
+offset_right = 592.0
+offset_bottom = 485.0
